@@ -103,23 +103,37 @@
           const newImages = [...images, rawLink];
 
           // 2. Kiểm tra xem file images.json đã tồn tại chưa
-          let fileData = null;
-          res = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${REPO}/contents/${FILE_PATH}`, {
-            headers: { Authorization: `token ${TOKEN}` }
-          });
-          if (res.ok) fileData = await res.json();
+         let sha = null;
+try {
+  const res = await fetch(
+    `https://api.github.com/repos/${GITHUB_USER}/${REPO}/contents/${FILE_PATH}`,
+    { headers: { Authorization: `token ${TOKEN}` } }
+  );
+  if (res.ok) {
+    const fileData = await res.json();
+    sha = fileData.sha;
+  }
+} catch (err) {
+  console.warn("images.json chưa tồn tại, sẽ tạo mới.");
+}
 
-          // 3. Upload hoặc tạo mới images.json
-          res = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${REPO}/contents/${FILE_PATH}`, {
-            method: "PUT",
-            headers: { Authorization: `token ${TOKEN}`, "Content-Type": "application/json" },
-            body: JSON.stringify({
-              message: "Update images.json",
-              content: btoa(unescape(encodeURIComponent(JSON.stringify(newImages, null, 2)))),
-              sha: fileData ? fileData.sha : undefined,
-              branch: BRANCH,
-            }),
-          });
+// Update hoặc tạo mới images.json
+await fetch(
+  `https://api.github.com/repos/${GITHUB_USER}/${REPO}/contents/${FILE_PATH}`,
+  {
+    method: "PUT",
+    headers: {
+      Authorization: `token ${TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      message: "Update images.json",
+      content: btoa(JSON.stringify(newImages, null, 2)),
+      sha: sha || undefined,
+      branch: BRANCH,
+    }),
+  }
+);
 
           if (!res.ok) throw new Error("Cập nhật images.json thất bại");
 
