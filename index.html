@@ -1,40 +1,55 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Lưu trữ dữ liệu UPD</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; background: #f4f6f8; }
-    h1 { font-size: 22px; text-align: center; margin-bottom: 20px; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
-    .card { background: white; border-radius: 12px; padding: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: 0.3s; }
-    .card:hover { transform: translateY(-3px); }
-    img { width: 100%; border-radius: 8px; }
-    textarea { width: 100%; margin-top: 8px; font-size: 12px; border: 1px solid #ccc; border-radius: 6px; padding: 4px; resize: none; }
-    button { margin-top: 6px; padding: 6px 10px; font-size: 12px; cursor: pointer; border: none; border-radius: 6px; background: #4CAF50; color: white; }
-    button:hover { background: #43a047; }
+    body { font-family: 'Segoe UI', sans-serif; padding: 20px; margin: 0;
+      background: linear-gradient(135deg,#e3f2fd,#fce4ec); color:#333; }
+    header { text-align: center; margin-bottom: 30px; }
+    .upload-box { display: flex; justify-content: center; margin-bottom: 20px; }
+    .upload-label { padding: 10px 20px; background:#1976d2; color:#fff; border-radius:8px; cursor:pointer; }
+    .upload-label:hover { background:#1565c0; }
+    #upload { display:none; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(250px,1fr)); gap:20px; }
+    .card { background:#fff; border-radius:12px; padding:12px; box-shadow:0 4px 15px rgba(0,0,0,0.1); }
+    img { width:100%; border-radius:10px; margin-bottom:10px; }
+    textarea { width:100%; font-size:12px; border:1px solid #ccc; border-radius:6px; padding:6px; resize:none; margin-bottom:10px; }
+    .btn-group { display:flex; gap:10px; justify-content:center; }
+    button { flex:1; padding:8px 0; font-size:13px; border:none; border-radius:6px; cursor:pointer; }
+    button.primary { background:#4caf50; color:#fff; }
+    button.primary:hover { background:#43a047; }
+    button.secondary { background:#2196f3; color:#fff; }
+    button.secondary:hover { background:#1976d2; }
   </style>
 </head>
 <body>
-  <h1>📂 Lưu trữ dữ liệu UPD</h1>
-  <input type="file" accept="image/*" id="upload" />
+  <header>
+    <h1>📂 Lưu trữ dữ liệu UPD</h1>
+  </header>
+
+  <div class="upload-box">
+    <label class="upload-label" for="upload">📤 Tải ảnh lên</label>
+    <input type="file" accept="image/*" id="upload" />
+  </div>
+
   <div id="images" class="grid"></div>
 
   <script>
     const GITHUB_USER = "Linh2k55555";
-    const REPO = "dataupd";   // repo bạn đang dùng
+    const REPO = "dataupd";
     const FILE_PATH = "images.json";
     const BRANCH = "main";
-    const TOKEN = "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"; // ⚠️ thêm token của bạn ở đây
+    const TOKEN = "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"; // đừng để public repo
 
     const imagesContainer = document.getElementById("images");
     let images = [];
 
-    // Load images.json
     async function loadImages() {
       try {
         const res = await fetch(`https://raw.githubusercontent.com/${GITHUB_USER}/${REPO}/${BRANCH}/${FILE_PATH}`);
+        if (!res.ok) throw new Error("Chưa có file images.json");
         images = await res.json();
       } catch {
         images = [];
@@ -50,8 +65,10 @@
         div.innerHTML = `
           <img src="${link}" alt="uploaded-${i}">
           <textarea readonly rows="2">${link}</textarea>
-          <button onclick="copyLink('${link}')">Sao chép link</button>
-          <button onclick="window.open('${link}', '_blank')">Mở ảnh</button>
+          <div class="btn-group">
+            <button class="primary" onclick="copyLink('${link}')">📋 Sao chép</button>
+            <button class="secondary" onclick="window.open('${link}', '_blank')">🔗 Mở ảnh</button>
+          </div>
         `;
         imagesContainer.appendChild(div);
       });
@@ -64,74 +81,62 @@
       const fileName = `${Date.now()}-${file.name}`;
       const path = `images/${fileName}`;
 
-      // Đọc file thành base64
       const reader = new FileReader();
       reader.onloadend = async () => {
-        const base64 = reader.result.split(",")[1];
-
-        // Upload file ảnh vào repo
-        const uploadRes = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${REPO}/contents/${path}`, {
-          method: "PUT",
-          headers: {
-            Authorization: `token ${TOKEN}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            message: `Upload ${fileName}`,
-            content: base64,
-            branch: BRANCH,
-          }),
-        });
-
-        if (!uploadRes.ok) {
-          alert("❌ Upload thất bại!");
-          return;
-        }
-
-        // Tạo link raw auto
-        const rawLink = `https://raw.githubusercontent.com/${GITHUB_USER}/${REPO}/${BRANCH}/${path}`;
-        const newImages = [...images, rawLink];
-
-        // Lấy SHA của file images.json (nếu có)
-        let sha = null;
         try {
-          const res = await fetch(
-            `https://api.github.com/repos/${GITHUB_USER}/${REPO}/contents/${FILE_PATH}`,
-            { headers: { Authorization: `token ${TOKEN}` } }
-          );
-          if (res.ok) {
-            const fileData = await res.json();
-            sha = fileData.sha;
-          }
-        } catch {}
+          const base64 = reader.result.split(",")[1];
 
-        // Update images.json
-        await fetch(
-          `https://api.github.com/repos/${GITHUB_USER}/${REPO}/contents/${FILE_PATH}`,
-          {
+          // 1. Upload file ảnh
+          let res = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${REPO}/contents/${path}`, {
             method: "PUT",
-            headers: {
-              Authorization: `token ${TOKEN}`,
-              "Content-Type": "application/json",
-            },
+            headers: { Authorization: `token ${TOKEN}`, "Content-Type": "application/json" },
             body: JSON.stringify({
-              message: "Update images.json",
-              content: btoa(JSON.stringify(newImages, null, 2)),
-              sha,
+              message: `Upload ${fileName}`,
+              content: base64,
               branch: BRANCH,
             }),
-          }
-        );
+          });
 
-        images = newImages;
-        renderImages();
+          if (!res.ok) throw new Error("Upload ảnh thất bại");
+          
+          const rawLink = `https://raw.githubusercontent.com/${GITHUB_USER}/${REPO}/${BRANCH}/${path}`;
+          const newImages = [...images, rawLink];
+
+          // 2. Kiểm tra xem file images.json đã tồn tại chưa
+          let fileData = null;
+          res = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${REPO}/contents/${FILE_PATH}`, {
+            headers: { Authorization: `token ${TOKEN}` }
+          });
+          if (res.ok) fileData = await res.json();
+
+          // 3. Upload hoặc tạo mới images.json
+          res = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${REPO}/contents/${FILE_PATH}`, {
+            method: "PUT",
+            headers: { Authorization: `token ${TOKEN}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              message: "Update images.json",
+              content: btoa(unescape(encodeURIComponent(JSON.stringify(newImages, null, 2)))),
+              sha: fileData ? fileData.sha : undefined,
+              branch: BRANCH,
+            }),
+          });
+
+          if (!res.ok) throw new Error("Cập nhật images.json thất bại");
+
+          images = newImages;
+          renderImages();
+          alert("✅ Upload thành công!");
+        } catch (err) {
+          console.error(err);
+          alert("❌ Lỗi: " + err.message);
+        }
       };
       reader.readAsDataURL(file);
     }
 
     function copyLink(link) {
       navigator.clipboard.writeText(link).then(() => {
-        alert("📋 Đã sao chép link!");
+        alert("✅ Đã sao chép link!");
       });
     }
 
